@@ -1,32 +1,23 @@
-# Take-Home Test — mTLS PATCH + DB Update + UDP Broadcast (Task1) + UDP Listener (Task2)
+# Secure Presence Service — mTLS PATCH API, User Activity Update, and UDP Broadcast (Task 1) + UDP Listener (Task 2)
 
-This repository contains a multi-module Maven project:
+This repository contains a multi-module Maven project implementing a secure client–server workflow using **mutual TLS (mTLS)** and a lightweight UDP broadcast mechanism.
 
-- **server/** (Task 1) Spring Boot server over HTTPS with **mTLS**, validates client certificate CN, updates DB, broadcasts UDP.
-- **client/** (Task 1) Java client sending an **empty HTTP PATCH** request using a TLS client certificate (mTLS).
-- **task2/** (Task 2 - optional) UDP listener that receives broadcast packets and prints decoded fields.
+## Modules
+- **server/** (Task 1) Spring Boot HTTPS server with **mTLS**. Validates the client certificate, extracts the certificate CN, updates a user record in the database, and broadcasts a binary UDP message.
+- **client/** (Task 1) Java client that authenticates with a **TLS client certificate** and sends an **empty HTTP PATCH** request to the server.
+- **task2/** (Task 2 — optional) UDP listener that receives broadcast packets on port 6667 and prints decoded fields (with safe handling for malformed packets).
 
-The implementation follows the specification: the client sends an empty PATCH using mTLS, the server extracts CN from the client cert, validates it as email-like (HTTP 400 otherwise), looks up the user in DB (HTTP 403 if missing), updates `lastSeen` (epoch nanos), `ip`, `port`, then broadcasts a binary UDP message from port 6666 to receivers on port 6667. :contentReference[oaicite:1]{index=1}
-
-
----
-
-## 1) Requirements
-
-### Software
-- Windows 11 Pro
-- Java **21** (JDK) installed (Eclipse uses JavaSE-21)
-- Eclipse IDE (Enterprise Java and Web Developers)
-- OpenSSL available (Git Bash is easiest on Windows)
-- (Optional) Docker Desktop (if you want to run server in Docker)
-- Maven is optional for CLI usage — Eclipse m2e can build/run without global Maven installation.
-
-### Ports used
-- Server HTTPS: **8443**
-- UDP broadcaster sends **FROM 6666** and broadcasts **TO 6667**
-- UDP listener (task2) listens on **6667**
+## End-to-end behavior
+1. The client sends an **empty PATCH** request over **mTLS**.
+2. The server extracts the **CN (Common Name)** from the client TLS certificate.
+3. CN format is validated:
+   - If CN does not resemble an email address → responds **HTTP 400**
+4. The server looks up a user by email (CN):
+   - If no matching user exists → responds **HTTP 403**
+5. On success, the server updates the user record:
+   - `lastSeen`: current time as **nanoseconds since Unix epoch**
+   - `ip`: IP address used for the API call
+   - `port`: port used for the API call
+6. The server broadcasts a **binary message** from UDP **port 6666** to applications listening on UDP **port 6667**.
 
 ---
-
-## 2) Project Layout
-

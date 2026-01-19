@@ -1,0 +1,8 @@
+com\patty\takehome\server\tls\ClientCertExtractor.class
+com\patty\takehome\server\udp\UdpBroadcaster.class
+com\patty\takehome\server\udp\BinaryMessageCodec.class
+com\patty\takehome\server\ServerApplication.class
+com\patty\takehome\server\db\UserRepository.class
+com\patty\takehome\server\db\User.class
+com\patty\takehome\server\service\UserSeenService.class
+com\patty\takehome\server\api\PatchController.class

@@ -1,0 +1,37 @@
+server:
+  port: 8443
+  ssl:
+    enabled: true
+    # Create these files using certs/make-certs.ps1
+    key-store: classpath:certs/server-keystore.p12
+    key-store-password: changeit
+    key-store-type: PKCS12
+    key-alias: server
+    trust-store: classpath:certs/server-truststore.p12
+    trust-store-password: changeit
+    trust-store-type: PKCS12
+    client-auth: need  # <-- this enforces mTLS and validates client cert chain
+
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/takehome;MODE=PostgreSQL;DB_CLOSE_ON_EXIT=FALSE
+    driverClassName: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+  sql:
+    init:
+      mode: always
+
+logging:
+  level:
+    org.springframework.web: INFO
+
+takehome:
+  udp:
+    sourcePort: 6666
+    targetPort: 6667
+    broadcastAddress: 255.255.255.255

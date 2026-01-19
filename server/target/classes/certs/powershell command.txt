@@ -1,0 +1,69 @@
+$ErrorActionPreference = "Stop"
+
+# ===== CONFIG =====
+$PASS = "changeit"
+$SERVER_CN = "localhost"
+$CLIENT_CN = "alice@example.com"   # MUST exist in database (data.sql)
+
+# ===== CLEANUP OLD FILES =====
+Remove-Item -Force -ErrorAction SilentlyContinue `
+  ca.key, ca.crt, ca.srl, `
+  server.key, server.csr, server.crt, server.ext, server-keystore.p12, server-truststore.p12, `
+  client.key, client.csr, client.crt, client.ext, client.p12
+
+# ===== 1) CREATE CA =====
+openssl genrsa -out ca.key 4096
+openssl req -x509 -new -nodes -key ca.key -sha256 -days 3650 `
+  -subj "/CN=TakeHome-CA" -out ca.crt
+
+# ===== 2) SERVER CERT (with SAN for localhost) =====
+openssl genrsa -out server.key 2048
+openssl req -new -key server.key -subj "/CN=$SERVER_CN" -out server.csr
+
+$serverExt = @"
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = localhost
+IP.1 = 127.0.0.1
+"@
+$serverExt | Out-File -Encoding ascii server.ext
+
+openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial `
+  -out server.crt -days 825 -sha256 -extfile server.ext
+
+openssl pkcs12 -export -in server.crt -inkey server.key -name server `
+  -CAfile ca.crt -caname TakeHome-CA -out server-keystore.p12 -passout pass:$PASS
+
+# ===== 3) CLIENT CERT =====
+openssl genrsa -out client.key 2048
+openssl req -new -key client.key -subj "/CN=$CLIENT_CN" -out client.csr
+
+$clientExt = @"
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, keyEncipherment
+extendedKeyUsage = clientAuth
+"@
+$clientExt | Out-File -Encoding ascii client.ext
+
+openssl x509 -req -in client.csr -CA ca.crt -CAkey ca.key -CAcreateserial `
+  -out client.crt -days 825 -sha256 -extfile client.ext
+
+openssl pkcs12 -export -in client.crt -inkey client.key -name client `
+  -CAfile ca.crt -caname TakeHome-CA -out client.p12 -passout pass:$PASS
+
+# ===== 4) SERVER TRUSTSTORE (trust CA -> validate client cert) =====
+keytool -importcert -noprompt -alias takehome-ca `
+  -file ca.crt -keystore server-truststore.p12 -storetype PKCS12 -storepass $PASS
+
+Write-Host "Done. Generated:"
+Write-Host " - ca.crt"
+Write-Host " - server-keystore.p12"
+Write-Host " - server-truststore.p12"
+Write-Host " - client.p12"
+Write-Host "Client CN = $CLIENT_CN (must exist in users table)"
